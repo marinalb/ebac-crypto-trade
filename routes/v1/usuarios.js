@@ -1,7 +1,9 @@
 const express = require('express');
-const { criaUsuario } = require('../../services');
-const { logger } = require('winston');
 const passport = require('passport');
+
+const { criaUsuario, checaSaldo } = require('../../services');
+const { logger } = require('winston');
+
 
 const router = express.Router();
 
@@ -16,7 +18,7 @@ router.post('/', async(req, res) =>{
         });
         
     } catch (e) {
-        //logger.error(`User ERROR ${e.message}`);
+        logger.error(`User ERROR ${e.message}`);
 
         res.status(422).json({
             sucesso: false,
@@ -25,10 +27,13 @@ router.post('/', async(req, res) =>{
     }
 });
 
-router.get('/me', passport.authenticate('jwt', { session: false }), (req, res) => {
+router.get('/me', 
+passport.authenticate('jwt', { session: false }), 
+async (req, res) => {
     res.json({
         sucesso: true,
         usuario: req.user,
+        saldo: await checaSaldo(req.user),
     })
 });
 
