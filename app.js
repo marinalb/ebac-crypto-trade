@@ -7,7 +7,11 @@ const passport = require('passport');
 
 const { logger } = require('./utils');
 const { connect } = require('./models');
+const { agendaTarefas } = require('./workers');
 const router = require('./routes');
+
+//inicializa tarefas
+agendaTarefas();
 
 const app = express();
 
