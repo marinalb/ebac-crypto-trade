@@ -4,47 +4,47 @@ const checaSaldo = async (usuario) => {
     const operacoes = (await Usuario.aggregate([
         { $match: { cpf: usuario.cpf } },
         {
+            $unwind: {
+                path: '$moedas',
+                preserveNullAndEmptyArrays: true,
+            }
+        },
+        {
             $project: {
-                depositos: {
-                    $filter: {
-                        input: "$depositos",
-                        as: "depositos",
-                        cond: {
-                            $ne: ["$$depositos.cancelado", true],
-                        },
-                    },
+                'moedas.quantidade': 1,
+                'moedas.codigo': 1,
+            }
+        },
+        {
+            $lookup: {
+                from: 'cotacaos',
+                localField: 'moeda.codigo',
+                foreignField: 'moeda',
+                as: 'cotacoes'
+            }
+        },
+        {
+            $project: {
+                quantidade: '$moedas.quantidade',
+                codigo: '$moedas.codigo',
+                cotacao: {
+                    $first: {
+                        $sortArray: { input: '$cotacoes', sortBy: { data: -1 } }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                totalBrl: {
+                    $multiply: ['$quantidade', { $ifNull: [ '$cotacao.valor', 1 ] }],
                 },
-            },
-        },
-        {
-            $unwind: {
-                path: "$depositos",
-                preserveNullAndEmptyArrays: true,
+                codigo: 1,
             }
-        },
-        {
-            $group: {
-                _id: "$id",
-                depositos: { $sum: "$depositos.valor" },
-                saques: { $last: "$saques" }
-            }
-        },
-        {
-            $unwind: {
-                path: "$saques",
-                preserveNullAndEmptyArrays: true,
-            }
-        },
-        {
-            $group: {
-                _id: "$id",
-                saques: { $sum: "$saques.valor" },
-                depositos: { $last: "$depositos" }
-            }
-        },
-    ]))[0];
+        }
+    ]));
 
-    return operacoes.depositos - operacoes.saques;
+    return operacoes.reduce((acc, operacao) => acc + operacao.totalBrl, 0);
 }
 
 module.exports = checaSaldo;

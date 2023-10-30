@@ -1,7 +1,7 @@
 const express = require('express');
 
 const { logger } = require('../../utils');
-const { checaSaldo } = require('../../services');
+const { checaSaldo, sacaCrypto } = require('../../services');
 
 const router = express.Router();
 
@@ -24,6 +24,10 @@ router.post('/', async (req, res) => {
         }
 
         usuario.saques.push({ valor: valor, data: new Date() });
+        
+        const saldoEmMoedas = usuario.moedas.find(m => m.codigo === 'BRL');
+        saldoEmMoedas.quantidade -= valor;
+
         await usuario.save();
         res.json({
             sucesso: true,
@@ -38,5 +42,27 @@ router.post('/', async (req, res) => {
             erro: e.message,
         })
     }
-})
+});
+
+router.post('/:codigo', async(req, res) => {
+    const usuario = req.user;
+    const codigo = req.params.codigo;
+
+    try {
+        const valor = req.body.valor;
+        const moedas = await sacaCrypto(usuario, codigo, valor);
+        res.json ({
+            sucesso: true,
+            moedas: moedas
+        });
+    } catch (e) {
+        logger.error(`Error ${e.message}`)
+        
+        res.status(422).json({
+            sucesso: false,
+            erro: e.message,
+        })
+    }
+});
+
 module.exports  = router;
